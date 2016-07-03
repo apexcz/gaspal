@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Station;
+use App\Company;
 use Illuminate\Http\Request;
-
+use App\Http\Transformers\CompanyTransformer;
 use App\Http\Requests;
+use Dingo\Api\Exception\ValidationHttpException;
 
-class StationController extends Controller
+class CompanyController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -17,8 +18,9 @@ class StationController extends Controller
     public function index()
     {
         //
-        $stations = Station::orderBy('state', 'ASC')->orderBy('city','DESC')->get();
-        return $this->response->array($stations);
+        $companies =  Company::orderBy('name','ASC')->orderBy('created_at','ASC')->get();
+        //return $this->response->array($companies);
+        return $this->response->collection($companies, new CompanyTransformer)->setStatusCode(200);
     }
 
     /**
@@ -37,23 +39,18 @@ class StationController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Requests\StationFormRequest $request)
+    public function store(Requests\CompanyFormRequest $request)
     {
         //
-        $station = new Station();
 
-        $station->bus_stop = $request->bus_stop;
-        $station->city = $request->city;
-        $station->state = $request->state;
-        $station->company_id = $request->company_id;
-        $station->phone = $request->phone;
+        $inputs = $request->all();
+        $company =  Company::create($inputs);
 
-        if($station->save()){
+        if($company)
             return $this->response->created();
-        }
-        else{
+        else
             return $this->response->errorBadRequest();
-        }
+        //throw new ValidationHttpException('jeid');
     }
 
     /**
@@ -65,10 +62,9 @@ class StationController extends Controller
     public function show($id)
     {
         //
-        $station = Station::findOrFail($id);
-        if(!$station)
-            throw new NotFoundHttpException;
-        return response($station,200);
+        $company = Company::findOrFail($id);
+        //return response($company,200);
+        return $this->response->item($company,new CompanyTransformer)->setStatusCode(200);;
     }
 
     /**
@@ -89,12 +85,24 @@ class StationController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Requests\CompanyFormRequest $request, $id)
     {
         //
-        $station = Station::findOrFail($id);
-        $station->fill($request->all())->save();
-        return $this->response->array(['stae'=>$station,'eer'=>$request->all()],209);
+//        $this->validate($request,[
+//           'name' => 'required'
+//        ]);
+
+        try{
+            $company = Company::findOrFail($id);
+            return response($request->all(),309);
+            $company->fill($request->all())->save();
+            return response($company,200);
+        }
+        catch(\Exception $ex)
+        {
+            return $this->response->errorInternal('Sorry an internal error occured');
+        }
+
     }
 
     /**
@@ -106,14 +114,8 @@ class StationController extends Controller
     public function destroy($id)
     {
         //
-        $station = Station::findOrFail($id);
-        if($station->delete())
-        {
-            return $this->response->noContent();
-        }
-        else
-        {
-            return $this->response->error('could not delete station', 500);
-        }
+        $company = Company::findOrfail($id);
+        $company->delete();
+        return response($company,200);
     }
 }

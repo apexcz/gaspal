@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Station;
+use Bican\Roles\Models\Role;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
 
-class StationController extends Controller
+class RoleController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -17,8 +17,7 @@ class StationController extends Controller
     public function index()
     {
         //
-        $stations = Station::orderBy('state', 'ASC')->orderBy('city','DESC')->get();
-        return $this->response->array($stations);
+        return $this->response->array(Role::orderBy('level','ASC')->get());
     }
 
     /**
@@ -37,18 +36,17 @@ class StationController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Requests\StationFormRequest $request)
+    public function store(Requests\RoleFormRequest $request)
     {
         //
-        $station = new Station();
+        $role = new Role();
+        $role->name = $request->get('name');
+        $role->description = $request->description;
+        $role->slug = $request->slug;
+        $role->level = ($request->input('level')) ? $request->input('level') : 1;
 
-        $station->bus_stop = $request->bus_stop;
-        $station->city = $request->city;
-        $station->state = $request->state;
-        $station->company_id = $request->company_id;
-        $station->phone = $request->phone;
-
-        if($station->save()){
+        if($role->save()){
+            $role->perms()->sync($request->perms);
             return $this->response->created();
         }
         else{
@@ -65,10 +63,8 @@ class StationController extends Controller
     public function show($id)
     {
         //
-        $station = Station::findOrFail($id);
-        if(!$station)
-            throw new NotFoundHttpException;
-        return response($station,200);
+        $role = Role::findOrFail($id);
+        return $this->response->array($role);
     }
 
     /**
@@ -92,9 +88,14 @@ class StationController extends Controller
     public function update(Request $request, $id)
     {
         //
-        $station = Station::findOrFail($id);
-        $station->fill($request->all())->save();
-        return $this->response->array(['stae'=>$station,'eer'=>$request->all()],209);
+        $role = Role::findOrFail($id);
+        if($role->fill($request->all())->save()){
+            $role->perms()->sync($request->perms);
+            return $this->response->array($role);
+        }
+        else{
+            return $this->response->errorBadRequest();
+        }
     }
 
     /**
@@ -106,14 +107,8 @@ class StationController extends Controller
     public function destroy($id)
     {
         //
-        $station = Station::findOrFail($id);
-        if($station->delete())
-        {
-            return $this->response->noContent();
-        }
-        else
-        {
-            return $this->response->error('could not delete station', 500);
-        }
+        $role = Role::findOrFail($id);
+        $role->delete();
+        return $this->response->noContent();
     }
 }
